@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wedding Invitation | Print</title>
+  <style>
+    @font-face {
+      font-family: Moul;
+      src: url("fonts/Moul-Regular.ttf") format("truetype");
+      font-display: swap;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #381b16; background: #f6f0e6; font: 1rem system-ui, sans-serif; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1.25rem max(1rem, calc((100% - 46rem) / 2));
+      background: #650f0b;
+      color: #fff6de;
+    }
+    h1 { margin: 0; font: clamp(1.45rem, 4vw, 2rem) Georgia, serif; }
+    header nav { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    header a { color: inherit; }
+    button {
+      padding: .65rem 1rem;
+      border: 0;
+      border-radius: .35rem;
+      background: #f4cb75;
+      color: #381b16;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    button:disabled { cursor: wait; opacity: .65; }
+    main { width: min(46rem, calc(100% - 2rem)); margin: 1.5rem auto 3rem; }
+    figure { margin: 0 0 2rem; }
+    figcaption { margin-bottom: .55rem; font-weight: 650; }
+    img { display: block; width: 100%; height: auto; }
+    .venue-link { display: block; width: 100%; }
+    .cover-art {
+      position: relative;
+      container-type: inline-size;
+    }
+    .guest-name {
+      position: absolute;
+      inset: 73.5% 22% 22.7%;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      color: #f2c164;
+      font: 400 calc(2.8cqw * var(--name-scale, 1)) / 1.4 Moul, sans-serif;
+      text-align: center;
+      white-space: nowrap;
+      cursor: text;
+      transform: translateY(.48cqw);
+    }
+    #status:empty { display: none; }
+
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      header, figcaption, #status { display: none; }
+      body { background: white; }
+      main { width: auto; margin: 0; }
+      figure {
+        display: grid;
+        place-items: center;
+        height: 297mm;
+        margin: 0;
+        break-inside: avoid;
+      }
+      figure + figure { break-before: page; }
+      img { width: 100%; height: 297mm; object-fit: cover; }
+      .cover-sheet { position: relative; overflow: hidden; }
+      .cover-art {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: calc(297mm * 2752 / 3674);
+        transform: translateX(-50%);
+      }
+      .cover-art img { height: auto; }
+      .guest-name { outline: none; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Wedding Invitation</h1>
+    <nav aria-label="Invitation controls">
+      <button id="print" type="button" disabled>Print / Save as PDF</button>
+    </nav>
+  </header>
+  <main>
+    <p id="status" role="status"></p>
+    <figure class="cover-sheet">
+      <figcaption>1. Invitation cover</figcaption>
+      <div class="cover-art">
+        <img src="images/page-2.jpeg" alt="Red and gold wedding invitation cover" width="2752" height="3674">
+        <div class="guest-name" lang="km" contenteditable="plaintext-only" role="textbox" aria-label="Guest name" spellcheck="false"></div>
+      </div>
+    </figure>
+    <figure><figcaption>2. Ceremony schedule</figcaption><img src="images/page-4.jpeg" alt="Wedding ceremony schedule in Khmer"></figure>
+    <figure><figcaption>3. Formal invitation</figcaption><img src="images/page-5.jpeg" alt="Formal wedding invitation in Khmer"></figure>
+    <figure><figcaption>4. Thank-you message</figcaption><img src="images/page-3.jpeg" alt="Wedding thank-you message in Khmer"></figure>
+    <figure>
+      <figcaption>5. Venue map</figcaption>
+      <a class="venue-link" href="https://maps.app.goo.gl/G5YA82UEqZ4XNT738" aria-label="Open the venue in Google Maps">
+        <img src="images/page-1.jpeg" alt="Venue map with contact numbers and a QR code">
+      </a>
+    </figure>
+  </main>
+  <script>
+    const printButton = document.querySelector('#print');
+    const guestName = document.querySelector('.guest-name');
+    const params = new URLSearchParams(location.search);
+    const selectedGuest = params.get('guest')?.trim();
+    if (selectedGuest) guestName.textContent = selectedGuest;
+    function updatePdfTitle() {
+      const filename = guestName.textContent.trim()
+        .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-')
+        .replace(/[. ]+$/, '');
+      document.title = filename || 'Wedding Invitation';
+    }
+    updatePdfTitle();
+    guestName.addEventListener('input', updatePdfTitle);
+    window.addEventListener('beforeprint', updatePdfTitle);
+    const nameMetrics = document.createElement('canvas').getContext('2d');
+    function fitGuestName() {
+      nameMetrics.font = '100px Moul';
+      const width = nameMetrics.measureText(guestName.textContent).width;
+      // The box is 56% of the artwork width and the default type is 2.8%.
+      guestName.style.setProperty('--name-scale', Math.min(1, 1950 / Math.max(1, width)));
+    }
+    guestName.addEventListener('input', fitGuestName);
+    guestName.addEventListener('beforeinput', event => {
+      if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
+        event.preventDefault();
+      }
+    });
+    const assets = Array.from(document.images, image => image.decode());
+    assets.push(document.fonts.load('1rem Moul', guestName.textContent));
+    Promise.all(assets).then(() => {
+      fitGuestName();
+      printButton.disabled = false;
+      if (selectedGuest && params.get('print') === '1') {
+        window.print();
+      }
+    }).catch(() => {
+      document.querySelector('#status').textContent = 'An invitation image or the guest name font could not be loaded.';
+    });
+    printButton.addEventListener('click', () => window.print());
+  </script>
+</body>
+</html>
